@@ -1,0 +1,6 @@
+{
+  "name": "ระบบจองเวรนอกเวลาราชการ (Overtime Shift Booking)",
+  "description": "ระบบจองเวรนอกเวลาราชการ คำนวณค่าตอบแทนเวรวันธรรมดาและวันหยุด พร้อมพิมพ์ตารางหลักฐานขออนุมัติฯ ขนาด A4 แนวนอนตามแบบฟอร์มราชการ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
