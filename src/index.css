@@ -9,44 +9,128 @@
 @media print {
   @page {
     size: A4 landscape;
-    margin: 6mm 6mm;
+    margin: 5mm 5mm 5mm 5mm;
   }
 
-  body {
+  *, *::before, *::after {
+    box-sizing: border-box !important;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
+    width: 100% !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .no-print {
+  /* Hide app navigation and controls in print */
+  .no-print, header, nav {
     display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
   }
 
   .print-only {
     display: block !important;
   }
 
+  /* Outer container matching A4 landscape printable area (approx 287mm width) */
   .print-table-container {
     width: 100% !important;
     max-width: 100% !important;
-    overflow: visible !important;
-    box-shadow: none !important;
-    border: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    page-break-inside: avoid !important;
   }
 
-  table {
+  .print-header {
+    margin-bottom: 2mm !important;
+  }
+
+  .print-header h1 {
+    font-size: 13pt !important;
+    margin: 0 0 1mm 0 !important;
+    line-height: 1.2 !important;
+  }
+
+  .print-header p {
+    font-size: 9.5pt !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Master official table layout: tight, exact borders and non-overflowing cells */
+  table.official-roster-table {
     width: 100% !important;
+    table-layout: auto !important;
     border-collapse: collapse !important;
+    border: 1px solid #000000 !important;
+    font-size: 7.8pt !important;
+    line-height: 1.05 !important;
   }
 
-  tr {
-    page-break-inside: avoid;
+  table.official-roster-table th,
+  table.official-roster-table td {
+    border: 1px solid #000000 !important;
+    padding: 1.2px 1.5px !important;
   }
 
-  td.officer-name-cell {
+  /* Compact width for Officer Name & Position */
+  td.officer-name-cell,
+  th:first-child {
     white-space: nowrap !important;
+    width: 1% !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+
+  td.officer-pos-cell,
+  th:nth-child(2) {
+    white-space: nowrap !important;
+    width: 1% !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+
+  /* Certification block under table */
+  .print-certification {
+    margin-top: 2.5mm !important;
+    font-size: 8.5pt !important;
+    line-height: 1.25 !important;
+  }
+
+  .print-certification p {
+    margin: 0.5mm 0 !important;
+  }
+
+  /* 5 Signatures block placed neatly without overflowing bottom margin */
+  .print-signatures {
+    margin-top: 3.5mm !important;
+    padding-top: 1mm !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-signatures p {
+    margin: 0.5mm 0 !important;
+  }
+
+  /* Force background shading for holiday/weekend columns */
+  .bg-slate-400 {
+    background-color: #94a3b8 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
