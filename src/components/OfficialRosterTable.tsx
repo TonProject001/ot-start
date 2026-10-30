@@ -216,13 +216,13 @@ export const OfficialRosterTable: React.FC<Props> = ({
       </div>
 
       {/* Roster Document Sheet Container - Formatted strictly matching the official PDF */}
-      <div className="print-table-container bg-white rounded-xl shadow-md border border-slate-300 p-6 md:p-8 overflow-x-auto text-black font-['Sarabun',sans-serif]">
+      <div className="print-table-container print-area bg-white rounded-xl shadow-md border border-slate-300 p-6 md:p-8 overflow-x-auto text-black font-['Sarabun',sans-serif]">
         {/* Document Official Header */}
-        <div className="text-center mb-4 space-y-1">
-          <h1 className="text-sm md:text-base font-bold tracking-tight text-black leading-tight">
+        <div className="text-center mb-3 space-y-0.5 print-header">
+          <h1 className="text-sm md:text-base font-bold tracking-tight text-black leading-tight print:text-[14px]">
             {department.documentTitle || 'หลักฐานการเบิกจ่ายค่าตอบแทนการปฏิบัติงานนอกเวลาราชการ'}
           </h1>
-          <p className="text-[11px] md:text-xs text-black font-normal leading-relaxed">
+          <p className="text-[11px] md:text-xs text-black font-normal leading-relaxed print:text-[10px]">
             ส่วนราชการ <span className="font-normal">{department.agencyName}</span> ประจำเดือน{' '}
             <span className="font-normal">
               {THAI_MONTHS[month - 1]} {buddhistYear}
@@ -232,25 +232,25 @@ export const OfficialRosterTable: React.FC<Props> = ({
         </div>
 
         {/* Master Government Table matching exact PDF */}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse border border-black text-[10px] md:text-[11px] leading-tight select-text text-center font-normal">
+        <div className="overflow-x-auto print:overflow-visible">
+          <table className="w-full border-collapse border border-black text-[10px] md:text-[11px] leading-tight select-text text-center font-normal official-roster-table print:text-[9.5px]">
             <thead>
               <tr className="bg-white">
                 <th
                   rowSpan={2}
-                  className="border border-black px-2 py-1 font-bold text-center align-middle whitespace-nowrap min-w-[155px]"
+                  className="border border-black px-1.5 py-1 font-bold text-center align-middle whitespace-nowrap w-[1%]"
                 >
                   ชื่อ-สกุล
                 </th>
                 <th
                   rowSpan={2}
-                  className="border border-black px-1.5 py-1 font-bold text-center align-middle min-w-[130px]"
+                  className="border border-black px-1 py-1 font-bold text-center align-middle whitespace-nowrap w-[1%]"
                 >
                   ตำแหน่ง
                 </th>
                 <th
                   rowSpan={2}
-                  className="border border-black px-0.5 py-1 font-bold text-center align-middle w-[38px] min-w-[36px]"
+                  className="border border-black px-0.5 py-1 font-bold text-center align-middle w-[32px] min-w-[30px]"
                 >
                   อัตรา/
                   <br />
@@ -322,11 +322,11 @@ export const OfficialRosterTable: React.FC<Props> = ({
                   <React.Fragment key={s.officer.id}>
                     {/* Row 1: Weekday Rate 50 */}
                     <tr className="hover:bg-blue-50/20 transition-colors">
-                      {/* Name (spans 2 rows) - Strictly on the same line */}
+                      {/* Name (spans 2 rows) - Strictly compact on same line */}
                       <td
                         rowSpan={2}
                         onClick={() => onSelectOfficer(s.officer.id)}
-                        className={`officer-name-cell border border-black px-2 py-1 text-left align-middle font-medium cursor-pointer whitespace-nowrap ${
+                        className={`officer-name-cell border border-black px-1.5 py-0.5 text-left align-middle font-medium cursor-pointer whitespace-nowrap w-[1%] ${
                           isCurrentActive ? 'bg-blue-50/50' : ''
                         }`}
                       >
@@ -340,27 +340,27 @@ export const OfficialRosterTable: React.FC<Props> = ({
                         </div>
                       </td>
 
-                      {/* Position (spans 2 rows) - Formatted with top line and bottom line for นางสาว ปพิชญา เอี้ยงหมี */}
+                      {/* Position (spans 2 rows) - Strictly compact */}
                       <td
                         rowSpan={2}
-                        className={`border border-black px-1.5 py-1 text-center align-middle font-normal text-[10px] ${
+                        className={`officer-pos-cell border border-black px-1.5 py-0.5 text-center align-middle font-normal text-[10px] whitespace-nowrap w-[1%] ${
                           isCurrentActive ? 'bg-blue-50/50' : ''
                         }`}
                       >
                         {s.officer.position.includes('เจ้าพนักงานโสตทัศนศึกษา') &&
                         (s.officer.position.includes('ชำนาญงาน') || s.officer.name.includes('ปพิชญา')) ? (
-                          <div className="leading-tight">
+                          <div className="leading-tight whitespace-nowrap">
                             <div>เจ้าพนักงานโสตทัศนศึกษา</div>
                             <div>ชำนาญงาน</div>
                           </div>
                         ) : s.officer.position.includes('\n') ? (
-                          <div className="leading-tight">
+                          <div className="leading-tight whitespace-nowrap">
                             {s.officer.position.split('\n').map((line, idx) => (
                               <div key={idx}>{line}</div>
                             ))}
                           </div>
                         ) : (
-                          s.officer.position
+                          <span className="whitespace-nowrap">{s.officer.position}</span>
                         )}
                       </td>
 
@@ -482,7 +482,7 @@ export const OfficialRosterTable: React.FC<Props> = ({
         </div>
 
         {/* Certification Notes beneath Table (Matching PDF exactly) */}
-        <div className="mt-3 text-[11px] leading-relaxed text-black space-y-1">
+        <div className="mt-3 text-[11px] leading-relaxed text-black space-y-1 print:mt-2 print:text-[9.5px] print-certification">
           <p className="font-normal">ขอรับรองว่าผู้มีรายชื่อข้างต้นได้ขึ้นปฏิบัติงานนอกเวลาราชการจริง</p>
           <p className="font-normal">
             ตรวจสอบถูกต้องแล้วเห็นควรจ่ายปฏิบัติงานนอกเวลาราชการ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -493,7 +493,7 @@ export const OfficialRosterTable: React.FC<Props> = ({
         </div>
 
         {/* 5 Official Signature Blocks Aligned Horizontally across Landscape A4 (Matching PDF) */}
-        <div className="mt-6 pt-2 grid grid-cols-5 gap-2 text-[10px] md:text-[11px] text-center text-black">
+        <div className="mt-6 pt-2 grid grid-cols-5 gap-2 text-[10px] md:text-[11px] text-center text-black print:mt-4 print:pt-1 print:text-[8.5px] print-signatures">
           {/* Signer 1: หัวหน้างาน */}
           <div className="flex flex-col justify-end items-center">
             <div className="w-full">
