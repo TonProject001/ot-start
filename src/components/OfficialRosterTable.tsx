@@ -6,7 +6,9 @@ import {
   User,
   Download,
   Settings,
-  Info
+  Info,
+  CheckCircle2,
+  FileText
 } from 'lucide-react';
 import {
   getDaysInMonth,
@@ -18,6 +20,8 @@ import {
   OfficerMonthSummary
 } from '../utils/shiftLogic';
 
+export type TableDocumentType = 'approval' | 'disbursement';
+
 interface Props {
   year: number;
   month: number;
@@ -26,6 +30,7 @@ interface Props {
   bookings: ShiftBooking[];
   specialHolidays: SpecialHoliday[];
   department: DepartmentConfig;
+  initialDocType?: TableDocumentType;
   onOpenSettings: () => void;
   onSelectOfficer: (id: string) => void;
 }
@@ -59,10 +64,12 @@ export const OfficialRosterTable: React.FC<Props> = ({
   bookings,
   specialHolidays,
   department,
+  initialDocType = 'approval',
   onOpenSettings,
   onSelectOfficer,
 }) => {
   const [viewMode, setViewMode] = useState<'all' | 'personal'>('all');
+  const [docType, setDocType] = useState<TableDocumentType>(initialDocType);
 
   const daysInMonth = getDaysInMonth(year, month);
   const monthStr = String(month).padStart(2, '0');
@@ -84,11 +91,16 @@ export const OfficialRosterTable: React.FC<Props> = ({
   const grandTotalWeekdayAmount = displayedSummaries.reduce((acc, s) => acc + s.weekdayAmount, 0);
   const grandTotalHolidayHours = displayedSummaries.reduce((acc, s) => acc + s.holidayHours, 0);
   const grandTotalHolidayAmount = displayedSummaries.reduce((acc, s) => acc + s.holidayAmount, 0);
-  const grandTotalHours = grandTotalWeekdayHours + grandTotalHolidayHours;
   const grandTotalAmount = grandTotalWeekdayAmount + grandTotalHolidayAmount;
   const grandTotalText = thaiBahtText(grandTotalAmount);
 
   const positionSummaryText = generatePositionSummary(displayedSummaries.map((s) => s.officer));
+
+  // Determine active document title based on docType
+  const currentTitle =
+    docType === 'approval'
+      ? department.approvalDocumentTitle || 'หลักฐานการขออนุมัติขึ้นปฏิบัติงานนอกเวลาราชการ'
+      : department.documentTitle || 'หลักฐานการเบิกจ่ายค่าตอบแทนการปฏิบัติงานนอกเวลาราชการ';
 
   // Trigger browser print
   const handlePrint = () => {
@@ -97,7 +109,7 @@ export const OfficialRosterTable: React.FC<Props> = ({
 
   // Export to CSV
   const handleExportCSV = () => {
-    let csv = `\uFEFF${department.documentTitle || 'หลักฐานการเบิกจ่ายค่าตอบแทนการปฏิบัติงานนอกเวลาราชการ'}\n`;
+    let csv = `\uFEFF${currentTitle}\n`;
     csv += `ส่วนราชการ ${department.agencyName} ประจำเดือน ${THAI_MONTHS[month - 1]} ${buddhistYear} ${department.divisionName}\n\n`;
 
     const dayCols = Array.from({ length: daysInMonth }, (_, i) => `วันที่ ${i + 1}`).join(',');
@@ -129,7 +141,7 @@ export const OfficialRosterTable: React.FC<Props> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `หลักฐานเบิกจ่าย_${THAI_MONTHS[month - 1]}_${buddhistYear}.csv`);
+    link.setAttribute('download', `${docType === 'approval' ? 'หลักฐานขออนุมัติ' : 'หลักฐานเบิกจ่าย'}_${THAI_MONTHS[month - 1]}_${buddhistYear}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -138,28 +150,67 @@ export const OfficialRosterTable: React.FC<Props> = ({
   return (
     <div className="space-y-6">
       {/* Top Action & Mode Switch Bar (Hidden in Print) */}
-      <div className="no-print bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+      <div className="no-print bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+        {/* Document Switch Tabs */}
+        <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-3">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setDocType('approval')}
+              className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                docType === 'approval'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/70'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>1. ตารางหลักฐานการขออนุมัติขึ้นเวรฯ (ผู้ลงนาม 4 ท่าน)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDocType('disbursement')}
+              className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                docType === 'disbursement'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/70'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>2. ตารางหลักฐานการเบิกจ่ายค่าตอบแทนฯ (ผู้ลงนาม 5 ท่าน)</span>
+            </button>
+          </div>
+
+          <div className="text-xs text-slate-500 font-medium">
+            <span>ตารางปัจจุบัน: </span>
+            <strong className="text-blue-700 font-bold">
+              {docType === 'approval' ? 'ขออนุมัติขึ้นปฏิบัติงาน (4 ท่าน)' : 'เบิกจ่ายค่าตอบแทน (5 ท่าน)'}
+            </strong>
+          </div>
+        </div>
+
+        {/* View Mode & Action Buttons */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           {/* View Mode Toggle */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-600 mr-1">มุมมองตาราง:</span>
             <button
               onClick={() => setViewMode('all')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'all'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'bg-slate-800 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>ภาพรวมทุกคน ({officers.length} ท่าน - แบบราชการเต็มรูปแบบ)</span>
+              <span>ภาพรวมทุกคน ({officers.length} ท่าน)</span>
             </button>
 
             <button
               onClick={() => setViewMode('personal')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'personal'
-                  ? 'bg-blue-600 text-white shadow-xs'
+                  ? 'bg-slate-800 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -175,7 +226,7 @@ export const OfficialRosterTable: React.FC<Props> = ({
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-300"
             >
               <Settings className="w-3.5 h-3.5 text-slate-500" />
-              <span>แก้ไขหัวเอกสาร/ผู้มีอำนาจลงนาม (5 ตำแหน่ง)</span>
+              <span>แก้ไขหัวเอกสาร/ผู้มีอำนาจลงนาม</span>
             </button>
 
             <button
@@ -197,11 +248,13 @@ export const OfficialRosterTable: React.FC<Props> = ({
         </div>
 
         {/* Informational badge */}
-        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <div className="flex items-center gap-2">
-            <Info className="w-3.5 h-3.5 text-blue-500" />
+            <Info className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
             <span>
-              รูปแบบการแสดงผลตรงตามเอกสารทางการ: มีลายมือชื่อ, ข้อความรับรอง, สรุปจำนวนคนตามตำแหน่ง และช่องลงนาม 5 ฝ่าย
+              {docType === 'approval'
+                ? 'หน้านี้คือ: "หลักฐานการขออนุมัติขึ้นปฏิบัติงานนอกเวลาราชการ" ผู้มีอำนาจลงนาม 4 ท่านตามภาพตัวอย่าง'
+                : 'หน้านี้คือ: "หลักฐานการเบิกจ่ายค่าตอบแทนการปฏิบัติงานนอกเวลาราชการ" ผู้ลงนาม 5 ท่าน'}
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -215,12 +268,12 @@ export const OfficialRosterTable: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Roster Document Sheet Container - Formatted strictly matching the official PDF */}
+      {/* Roster Document Sheet Container - Formatted strictly matching the official A4 Landscape template */}
       <div className="print-table-container print-area bg-white rounded-xl shadow-md border border-slate-300 p-6 md:p-8 overflow-x-auto text-black font-['Sarabun',sans-serif]">
         {/* Document Official Header */}
         <div className="text-center mb-3 space-y-0.5 print-header">
           <h1 className="text-sm md:text-base font-bold tracking-tight text-black leading-tight print:text-[14px]">
-            {department.documentTitle || 'หลักฐานการเบิกจ่ายค่าตอบแทนการปฏิบัติงานนอกเวลาราชการ'}
+            {currentTitle}
           </h1>
           <p className="text-[11px] md:text-xs text-black font-normal leading-relaxed print:text-[10px]">
             ส่วนราชการ <span className="font-normal">{department.agencyName}</span> ประจำเดือน{' '}
@@ -231,7 +284,7 @@ export const OfficialRosterTable: React.FC<Props> = ({
           </p>
         </div>
 
-        {/* Master Government Table matching exact PDF */}
+        {/* Master Government Table matching exact template */}
         <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full border-collapse border border-black text-[10px] md:text-[11px] leading-tight select-text text-center font-normal official-roster-table print:text-[9.5px]">
             <thead>
@@ -481,71 +534,135 @@ export const OfficialRosterTable: React.FC<Props> = ({
           </table>
         </div>
 
-        {/* Certification Notes beneath Table (Matching PDF exactly) */}
-        <div className="mt-3 text-[11px] leading-relaxed text-black space-y-1 print:mt-2 print:text-[9.5px] print-certification">
-          <p className="font-normal">ขอรับรองว่าผู้มีรายชื่อข้างต้นได้ขึ้นปฏิบัติงานนอกเวลาราชการจริง</p>
-          <p className="font-normal">
-            ตรวจสอบถูกต้องแล้วเห็นควรจ่ายปฏิบัติงานนอกเวลาราชการ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <span className="font-bold">{grandTotalAmount.toLocaleString()}</span>&nbsp;&nbsp;&nbsp;&nbsp;บาท
-            ให้กับ&nbsp;&nbsp;
-            <span className="font-medium">{positionSummaryText}</span>
-          </p>
-        </div>
+        {/* Certification Notes beneath Table (Only for Disbursement Form, omitted in Approval Form) */}
+        {docType === 'disbursement' && (
+          <div className="mt-3 text-[11px] leading-relaxed text-black space-y-1 print:mt-2 print:text-[9.5px] print-certification">
+            <p className="font-normal">ขอรับรองว่าผู้มีรายชื่อข้างต้นได้ขึ้นปฏิบัติงานนอกเวลาราชการจริง</p>
+            <p className="font-normal">
+              ตรวจสอบถูกต้องแล้วเห็นควรจ่ายปฏิบัติงานนอกเวลาราชการ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              <span className="font-bold">{grandTotalAmount.toLocaleString()}</span>&nbsp;&nbsp;&nbsp;&nbsp;บาท
+              ให้กับ&nbsp;&nbsp;
+              <span className="font-medium">{positionSummaryText}</span>
+            </p>
+          </div>
+        )}
 
-        {/* 5 Official Signature Blocks Aligned Horizontally across Landscape A4 (Matching PDF) */}
-        <div className="mt-6 pt-2 grid grid-cols-5 gap-2 text-[10px] md:text-[11px] text-center text-black print:mt-4 print:pt-1 print:text-[8.5px] print-signatures">
-          {/* Signer 1: หัวหน้างาน */}
-          <div className="flex flex-col justify-end items-center">
-            <div className="w-full">
-              <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
-              <p className="font-normal mt-1">( {department.signer1Name || 'นางสาวปพิชญา เอี้ยงหมี'} )</p>
-              <p className="text-[10px] mt-0.5">{department.signer1Position || 'หัวหน้างานโสตทัศนศึกษา'}</p>
+        {/* SIGNATURE SECTION: Either 4 Persons (Approval) or 5 Persons (Disbursement) */}
+        {docType === 'approval' ? (
+          /* ========================================================================= */
+          /* FORM 1: 4 Signatures matching user's uploaded image_f468d17f.png         */
+          /* ========================================================================= */
+          <div className="mt-6 pt-2 grid grid-cols-4 gap-4 text-[10px] md:text-[11px] text-center text-black print:mt-4 print:pt-1 print:text-[8.5px] print-signatures">
+            {/* Signer 1: ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="text-[10px] md:text-[11px] font-normal mb-1 print:text-[8.5px]">
+                  {department.apprSigner1Header || 'ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ'}
+                </p>
+                <p className="whitespace-nowrap mt-3">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.apprSigner1Name || 'นางสาวปพิชญา เอี้ยงหมี'} )</p>
+                <p className="text-[10px] mt-0.5 print:text-[8px]">{department.apprSigner1Position || 'หัวหน้างานโสตทัศนศึกษา'}</p>
+              </div>
+            </div>
+
+            {/* Signer 2: ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="text-[10px] md:text-[11px] font-normal mb-1 print:text-[8.5px]">
+                  {department.apprSigner2Header || 'ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ'}
+                </p>
+                <p className="whitespace-nowrap mt-3">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.apprSigner2Name || 'นางสาวกาญจนา โลหพันธุ์'} )</p>
+                <p className="text-[10px] mt-0.5 print:text-[8px]">{department.apprSigner2Position || 'หัวหน้ากลุ่มงานพัฒนาทรัพยากรบุคคล'}</p>
+              </div>
+            </div>
+
+            {/* Signer 3: ได้ตรวจสอบแล้วถูกต้องเห็นควรพิจารณาอนุมัติ */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="text-[10px] md:text-[11px] font-normal mb-1 print:text-[8.5px]">
+                  {department.apprSigner3Header || 'ได้ตรวจสอบแล้วถูกต้องเห็นควรพิจารณาอนุมัติ'}
+                </p>
+                <p className="whitespace-nowrap mt-3">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.apprSigner3Name || 'นายธนันท์ชัย กองแก้ว'} )</p>
+                <p className="text-[10px] mt-0.5 leading-tight print:text-[8px]">
+                  {department.apprSigner3Position || 'หัวหน้ากลุ่มภารกิจด้านพัฒนาระบบบริการ และสนับสนุนบริการสุขภาพ'}
+                </p>
+              </div>
+            </div>
+
+            {/* Signer 4: คำสั่งผู้อำนวยการอนุมัติ (รองผู้อำนวยการฝ่ายพัฒนาระบบบริการ...) */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="text-[10px] md:text-[11px] font-normal mb-1 print:text-[8.5px]">
+                  {department.apprSigner4Header || 'คำสั่งผู้อำนวยการอนุมัติ'}
+                </p>
+                <p className="whitespace-nowrap mt-3">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.apprSigner4Name || 'นายธนันท์ชัย กองแก้ว'} )</p>
+                <p className="text-[10px] mt-0.5 leading-tight print:text-[8px]">
+                  {department.apprSigner4Position || 'รองผู้อำนวยการฝ่ายพัฒนาระบบบริการ และสนับสนุนบริการสุขภาพ'}
+                </p>
+              </div>
             </div>
           </div>
+        ) : (
+          /* ========================================================================= */
+          /* FORM 2: 5 Signatures (Disbursement Table)                                 */
+          /* ========================================================================= */
+          <div className="mt-6 pt-2 grid grid-cols-5 gap-2 text-[10px] md:text-[11px] text-center text-black print:mt-4 print:pt-1 print:text-[8.5px] print-signatures">
+            {/* Signer 1: หัวหน้างาน */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.signer1Name || 'นางสาวปพิชญา เอี้ยงหมี'} )</p>
+                <p className="text-[10px] mt-0.5 print:text-[8px]">{department.signer1Position || 'หัวหน้างานโสตทัศนศึกษา'}</p>
+              </div>
+            </div>
 
-          {/* Signer 2: หัวหน้ากลุ่มงาน */}
-          <div className="flex flex-col justify-end items-center">
-            <div className="w-full">
-              <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
-              <p className="font-normal mt-1">( {department.signer2Name || 'นางสาวกาญจนา โลหพันธุ์'} )</p>
-              <p className="text-[10px] mt-0.5">{department.signer2Position || 'หัวหน้ากลุ่มงานพัฒนาทรัพยากรบุคคล'}</p>
+            {/* Signer 2: หัวหน้ากลุ่มงาน */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.signer2Name || 'นางสาวกาญจนา โลหพันธุ์'} )</p>
+                <p className="text-[10px] mt-0.5 print:text-[8px]">{department.signer2Position || 'หัวหน้ากลุ่มงานพัฒนาทรัพยากรบุคคล'}</p>
+              </div>
+            </div>
+
+            {/* Signer 3: หัวหน้ากลุ่มภารกิจ / หัวหน้าฝ่าย */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="text-[10px] font-normal mb-1 print:text-[8px]">{department.signer3Header || 'ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ'}</p>
+                <p className="whitespace-nowrap">ลงชื่อ..........................................................หัวหน้าฝ่าย</p>
+                <p className="font-normal mt-1">( {department.signer3Name || 'นายธนันท์ชัย กองแก้ว'} )</p>
+                <p className="text-[10px] mt-0.5 leading-tight print:text-[8px]">
+                  {department.signer3Position || 'หัวหน้ากลุ่มภารกิจด้านพัฒนาระบบบริการและสนับสนุนบริการสุขภาพ'}
+                </p>
+              </div>
+            </div>
+
+            {/* Signer 4: นักวิชาการเงินและบัญชี */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="text-[10px] font-normal mb-1 print:text-[8px]">{department.signer4Header || 'ได้ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ'}</p>
+                <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.signer4Name || 'นางสาวทิวารินทร์ ทองจรูญ'} )</p>
+                <p className="text-[10px] mt-0.5 print:text-[8px]">{department.signer4Position || 'นักวิชาการเงินและบัญชี'}</p>
+              </div>
+            </div>
+
+            {/* Signer 5: ผู้อำนวยการโรงพยาบาล */}
+            <div className="flex flex-col justify-end items-center">
+              <div className="w-full">
+                <p className="text-[10px] font-normal mb-1 print:text-[8px]">{department.signer5Header || 'คำสั่งผู้อำนวยการอนุมัติ'}</p>
+                <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
+                <p className="font-normal mt-1">( {department.signer5Name || 'นายแพทย์มงคล ลือชูวงศ์'} )</p>
+                <p className="text-[10px] mt-0.5 leading-tight print:text-[8px]">
+                  {department.signer5Position || 'ผู้อำนวยการโรงพยาบาลสมเด็จพระเจ้าตากสินมหาราช'}
+                </p>
+              </div>
             </div>
           </div>
-
-          {/* Signer 3: หัวหน้ากลุ่มภารกิจ / หัวหน้าฝ่าย */}
-          <div className="flex flex-col justify-end items-center">
-            <div className="w-full">
-              <p className="text-[10px] font-normal mb-1">{department.signer3Header || 'ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ'}</p>
-              <p className="whitespace-nowrap">ลงชื่อ..........................................................หัวหน้าฝ่าย</p>
-              <p className="font-normal mt-1">( {department.signer3Name || 'นายธนันท์ชัย กองแก้ว'} )</p>
-              <p className="text-[10px] mt-0.5 leading-tight">
-                {department.signer3Position || 'หัวหน้ากลุ่มภารกิจด้านพัฒนาระบบบริการและสนับสนุนบริการสุขภาพ'}
-              </p>
-            </div>
-          </div>
-
-          {/* Signer 4: นักวิชาการเงินและบัญชี */}
-          <div className="flex flex-col justify-end items-center">
-            <div className="w-full">
-              <p className="text-[10px] font-normal mb-1">{department.signer4Header || 'ได้ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ'}</p>
-              <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
-              <p className="font-normal mt-1">( {department.signer4Name || 'นางสาวทิวารินทร์ ทองจรูญ'} )</p>
-              <p className="text-[10px] mt-0.5">{department.signer4Position || 'นักวิชาการเงินและบัญชี'}</p>
-            </div>
-          </div>
-
-          {/* Signer 5: ผู้อำนวยการโรงพยาบาล */}
-          <div className="flex flex-col justify-end items-center">
-            <div className="w-full">
-              <p className="text-[10px] font-normal mb-1">{department.signer5Header || 'คำสั่งผู้อำนวยการอนุมัติ'}</p>
-              <p className="whitespace-nowrap">ลงชื่อ..........................................................</p>
-              <p className="font-normal mt-1">( {department.signer5Name || 'นายแพทย์มงคล ลือชูวงศ์'} )</p>
-              <p className="text-[10px] mt-0.5 leading-tight">
-                {department.signer5Position || 'ผู้อำนวยการโรงพยาบาลสมเด็จพระเจ้าตากสินมหาราช'}
-              </p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
