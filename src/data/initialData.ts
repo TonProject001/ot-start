@@ -22,6 +22,24 @@ export const INITIAL_DEPARTMENT: DepartmentConfig = {
   signer5Header: 'คำสั่งผู้อำนวยการอนุมัติ',
   signer5Name: 'นายแพทย์มงคล ลือชูวงศ์',
   signer5Position: 'ผู้อำนวยการโรงพยาบาลสมเด็จพระเจ้าตากสินมหาราช',
+
+  // Approval Document Form (หลักฐานการขออนุมัติขึ้นปฏิบัติงานนอกเวลาราชการ - 4 Signers)
+  approvalDocumentTitle: 'หลักฐานการขออนุมัติขึ้นปฏิบัติงานนอกเวลาราชการ',
+  apprSigner1Header: 'ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ',
+  apprSigner1Name: 'นางสาวปพิชญา เอี้ยงหมี',
+  apprSigner1Position: 'หัวหน้างานโสตทัศนศึกษา',
+
+  apprSigner2Header: 'ตรวจสอบแล้วถูกต้องเห็นควรอนุมัติ',
+  apprSigner2Name: 'นางสาวกาญจนา โลหพันธุ์',
+  apprSigner2Position: 'หัวหน้ากลุ่มงานพัฒนาทรัพยากรบุคคล',
+
+  apprSigner3Header: 'ได้ตรวจสอบแล้วถูกต้องเห็นควรพิจารณาอนุมัติ',
+  apprSigner3Name: 'นายธนันท์ชัย กองแก้ว',
+  apprSigner3Position: 'หัวหน้ากลุ่มภารกิจด้านพัฒนาระบบบริการ และสนับสนุนบริการสุขภาพ',
+
+  apprSigner4Header: 'คำสั่งผู้อำนวยการอนุมัติ',
+  apprSigner4Name: 'นายธนันท์ชัย กองแก้ว',
+  apprSigner4Position: 'รองผู้อำนวยการฝ่ายพัฒนาระบบบริการ และสนับสนุนบริการสุขภาพ',
 };
 
 export const INITIAL_OFFICERS: Officer[] = [
