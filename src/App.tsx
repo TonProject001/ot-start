@@ -438,7 +438,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Step 5: Official Master Roster Table (Full Government A4 View) */}
+        {/* Step 5: Official Approval Roster Table (หลักฐานการขออนุมัติฯ - 4 ท่าน) */}
         {currentStep === 5 && (
           <OfficialRosterTable
             year={year}
@@ -448,6 +448,23 @@ export default function App() {
             bookings={bookings}
             specialHolidays={specialHolidays}
             department={department}
+            initialDocType="approval"
+            onOpenSettings={() => setShowSettings(true)}
+            onSelectOfficer={(id) => setActiveOfficerId(id)}
+          />
+        )}
+
+        {/* Step 6: Official Disbursement Roster Table (หลักฐานการเบิกจ่ายฯ - 5 ท่าน) */}
+        {currentStep === 6 && (
+          <OfficialRosterTable
+            year={year}
+            month={month}
+            officers={officers}
+            activeOfficerId={activeOfficerId}
+            bookings={bookings}
+            specialHolidays={specialHolidays}
+            department={department}
+            initialDocType="disbursement"
             onOpenSettings={() => setShowSettings(true)}
             onSelectOfficer={(id) => setActiveOfficerId(id)}
           />
