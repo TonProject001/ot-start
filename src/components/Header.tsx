@@ -52,7 +52,8 @@ export const Header: React.FC<Props> = ({
     { number: 2, label: '2. เลือกเดือน' },
     { number: 3, label: '3. วันหยุดพิเศษ' },
     { number: 4, label: '4. ปฏิทินจองเวร' },
-    { number: 5, label: '5. ตารางหลักฐานฯ' },
+    { number: 5, label: '5. ตารางขออนุมัติฯ (4 ท่าน)' },
+    { number: 6, label: '6. ตารางเบิกจ่ายฯ (5 ท่าน)' },
   ];
 
   return (
