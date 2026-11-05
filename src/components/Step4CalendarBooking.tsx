@@ -11,7 +11,10 @@ import {
   Clock,
   Sparkles,
   Coins,
-  AlertCircle
+  AlertCircle,
+  CloudCheck,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import {
   getDaysInMonth,
@@ -29,10 +32,15 @@ interface Props {
   year: number;
   month: number;
   officer: Officer;
+  officers?: Officer[];
   bookings: ShiftBooking[];
   specialHolidays: SpecialHoliday[];
   onSaveBookings: (newBookings: ShiftBooking[]) => void;
+  onSaveAndSync?: (newBookings: ShiftBooking[]) => Promise<void>;
   onRemoveBookingsForDates: (officerId: string, dates: string[]) => void;
+  onRefreshGoogleSheets?: () => void;
+  isSyncingSheets?: boolean;
+  isGoogleSheetsConnected?: boolean;
   onPrev: () => void;
   onNext: () => void;
 }
@@ -41,10 +49,15 @@ export const Step4CalendarBooking: React.FC<Props> = ({
   year,
   month,
   officer,
+  officers = [],
   bookings,
   specialHolidays,
   onSaveBookings,
+  onSaveAndSync,
   onRemoveBookingsForDates,
+  onRefreshGoogleSheets,
+  isSyncingSheets = false,
+  isGoogleSheetsConnected = false,
   onPrev,
   onNext,
 }) => {
@@ -69,6 +82,23 @@ export const Step4CalendarBooking: React.FC<Props> = ({
       .forEach((b) => map.set(b.date, b.hours));
     return map;
   }, [bookings, officer.id, year, monthStr]);
+
+  // Map of bookings by other colleagues on each date to display who else is on duty
+  const otherOfficersBookingsMap = useMemo(() => {
+    const map = new Map<string, Array<{ fullName: string; shortName: string; hours: number }>>();
+    const officerMap = new Map(officers.map((o) => [o.id, o.name]));
+
+    bookings
+      .filter((b) => b.officerId !== officer.id && b.date.startsWith(`${year}-${monthStr}`) && b.hours > 0)
+      .forEach((b) => {
+        const list = map.get(b.date) || [];
+        const fullName = officerMap.get(b.officerId) || 'เพื่อนร่วมงาน';
+        const shortName = fullName.replace(/^(นาย|นางสาว|นาง|น\.ส\.)\s*/, '').split(' ')[0];
+        list.push({ fullName, shortName, hours: b.hours });
+        map.set(b.date, list);
+      });
+    return map;
+  }, [bookings, officer.id, officers, year, monthStr]);
 
   const toggleDateSelection = (dateStr: string) => {
     setSelectedDates((prev) =>
@@ -130,6 +160,33 @@ export const Step4CalendarBooking: React.FC<Props> = ({
     });
 
     onSaveBookings(newEntries);
+    setSelectedDates([]);
+  };
+
+  // Apply booking and immediately sync to Google Sheets safely with Smart Merge
+  const handleApplyBookingAndSync = async () => {
+    if (selectedDates.length === 0) return;
+
+    const newEntries: ShiftBooking[] = selectedDates.map((dateStr) => {
+      const isHol = isHolidayOrWeekend(dateStr, specialHolidays);
+      let hours: number;
+      if (hourMode === 'auto') {
+        hours = isHol ? MAX_HOURS_HOLIDAY : MAX_HOURS_WEEKDAY;
+      } else {
+        hours = isHol ? customHolidayHours : customWeekdayHours;
+      }
+      return {
+        officerId: officer.id,
+        date: dateStr,
+        hours,
+      };
+    });
+
+    if (onSaveAndSync) {
+      await onSaveAndSync(newEntries);
+    } else {
+      onSaveBookings(newEntries);
+    }
     setSelectedDates([]);
   };
 
@@ -264,6 +321,18 @@ export const Step4CalendarBooking: React.FC<Props> = ({
             >
               เลือกเฉพาะวันหยุด/วันหยุดพิเศษ (60 บ./ชม.)
             </button>
+            {isGoogleSheetsConnected && onRefreshGoogleSheets && (
+              <button
+                type="button"
+                disabled={isSyncingSheets}
+                onClick={onRefreshGoogleSheets}
+                title="กดเพื่อดึงข้อมูลเวรล่าสุดของเพื่อนร่วมงานจาก Google Sheets ทันที"
+                className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <CloudCheck className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingSheets ? 'animate-spin' : ''}`} />
+                <span>{isSyncingSheets ? 'กำลังดึง...' : 'ดึงเวรเพื่อนร่วมงานล่าสุด (Google Sheets)'}</span>
+              </button>
+            )}
             {selectedDates.length > 0 && (
               <button
                 type="button"
@@ -279,6 +348,21 @@ export const Step4CalendarBooking: React.FC<Props> = ({
             <span className="inline-block w-3 h-3 bg-slate-400 rounded-xs"></span>
             <span>แถบสีเทาเข้ม = วันหยุดและวันหยุดพิเศษ (ตามภาพตัวอย่าง)</span>
           </div>
+        </div>
+
+        {/* Smart Auto-Merge Info Note */}
+        <div className="mb-3 px-3 py-2 bg-emerald-50/90 border border-emerald-200 rounded-lg flex items-center justify-between text-[11px] text-emerald-900">
+          <div className="flex items-center gap-2">
+            <CloudCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>
+              <strong>ระบบ Smart Auto-Merge ป้องกันข้อมูลหาย:</strong> เมื่อกดส่งข้อมูล ระบบจะดึงเวรของเจ้าหน้าที่ท่านอื่นที่บันทึกไว้ใน Google Sheets มารวมกันอัตโนมัติ ไม่มีการเขียนทับหรือลบเวรของใครแน่นอน
+            </span>
+          </div>
+          {isGoogleSheetsConnected && (
+            <span className="px-2 py-0.5 bg-emerald-200/70 text-emerald-800 font-bold rounded text-[10px] flex-shrink-0">
+              Google Sheets เชื่อมต่ออยู่
+            </span>
+          )}
         </div>
 
         {/* Hour settings & Apply button */}
@@ -338,7 +422,7 @@ export const Step4CalendarBooking: React.FC<Props> = ({
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {selectedDates.length > 0 && (
               <button
                 type="button"
@@ -350,15 +434,36 @@ export const Step4CalendarBooking: React.FC<Props> = ({
               </button>
             )}
 
+            {isGoogleSheetsConnected && onSaveAndSync ? (
+              <button
+                type="button"
+                disabled={selectedDates.length === 0 || isSyncingSheets}
+                onClick={handleApplyBookingAndSync}
+                title="บันทึกและส่งขึ้น Google Sheets ทันที โดยรวมข้อมูลกับเวรของเจ้าหน้าที่ท่านอื่นอัตโนมัติ"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-lg shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <CloudCheck className={`w-4 h-4 ${isSyncingSheets ? 'animate-spin' : ''}`} />
+                <span>
+                  {isSyncingSheets
+                    ? 'กำลังรวมข้อมูลและซิงค์...'
+                    : `บันทึกและส่ง Google Sheets (Smart Merge) ${selectedDates.length > 0 ? `(${selectedDates.length} วัน)` : ''}`}
+                </span>
+              </button>
+            ) : null}
+
             <button
               type="button"
               disabled={selectedDates.length === 0}
               onClick={handleApplyBooking}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 ${
+                isGoogleSheetsConnected
+                  ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              } font-semibold text-xs rounded-lg shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer`}
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>
-                บันทึกการจองเวร {selectedDates.length > 0 ? `(${selectedDates.length} วันที่เลือก)` : ''}
+                {isGoogleSheetsConnected ? 'บันทึกในเครื่องเท่านั้น' : `บันทึกการจองเวร ${selectedDates.length > 0 ? `(${selectedDates.length} วันที่เลือก)` : ''}`}
               </span>
             </button>
           </div>
@@ -455,9 +560,22 @@ export const Step4CalendarBooking: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Middle: Clean spacing without rate text labels */}
-                <div className="my-1 min-h-[16px]">
-                  {/* No rate text (วันหยุด60บ. วันธรรมดา50บ.) as requested */}
+                {/* Middle: Colleague shifts tags */}
+                <div className="my-1 min-h-[16px] space-y-1">
+                  {otherOfficersBookingsMap.has(dateStr) && (
+                    <div className="space-y-0.5">
+                      {otherOfficersBookingsMap.get(dateStr)!.map((colleague, cIdx) => (
+                        <div
+                          key={cIdx}
+                          title={`มีผู้ขึ้นเวรแล้ว: ${colleague.fullName} (${colleague.hours} ชม.)`}
+                          className="text-[9px] px-1 py-0.5 rounded font-semibold bg-amber-100/95 text-amber-900 border border-amber-300/90 truncate flex items-center gap-1 shadow-2xs"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>
+                          <span className="truncate">{colleague.shortName} {colleague.hours}ชม.</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom: Booking status badge */}

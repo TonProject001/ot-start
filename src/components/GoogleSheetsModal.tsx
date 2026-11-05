@@ -215,6 +215,14 @@ export const GoogleSheetsModal: React.FC<Props> = ({
                 </div>
               </div>
 
+              <div className="p-2.5 bg-emerald-100/70 border border-emerald-300 rounded-lg text-[11px] text-emerald-900 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong>ระบบ Smart Auto-Merge ป้องกันข้อมูลสูญหาย:</strong>{' '}
+                  เมื่อกดส่งข้อมูล ระบบจะดึงเวรของเจ้าหน้าที่ท่านอื่นที่บันทึกไว้ใน Google Sheets มาผสานรวมกันอัตโนมัติก่อนส่งเสมอ ป้องกันข้อมูลของเพื่อนร่วมงานถูกเขียนทับ 100%
+                </div>
+              </div>
+
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
                   type="button"
@@ -223,7 +231,7 @@ export const GoogleSheetsModal: React.FC<Props> = ({
                   className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span>{isSyncing ? 'กำลังส่งข้อมูล...' : 'ส่งข้อมูลขึ้น Google Sheets เดี๋ยวนี้'}</span>
+                  <span>{isSyncing ? 'กำลังส่งข้อมูล...' : 'ส่งข้อมูลขึ้น Google Sheets (Smart Merge)'}</span>
                 </button>
 
                 <button

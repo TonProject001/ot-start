@@ -1,4 +1,10 @@
 import { Officer, ShiftBooking, SpecialHoliday, DepartmentConfig } from '../types';
+import {
+  smartMergeBookings,
+  mergeOfficers,
+  mergeSpecialHolidays,
+  mergeDepartmentConfig
+} from '../utils/syncLogic';
 
 export interface GoogleSheetsSyncData {
   officers: Officer[];
@@ -35,7 +41,7 @@ export function normalizeSheetDate(dateVal: any): string {
 }
 
 export const APPS_SCRIPT_TEMPLATE = `/**
- * Google Apps Script สำหรับระบบจองเวรนอกเวลาราชการ
+ * Google Apps Script สำหรับระบบจองเวรนอกเวลาราชการ (เวอร์ชันป้องกันข้อมูลทับซ้อน - Smart Merge)
  * วางโค้ดนี้ใน Google Sheets > ส่วนขยาย (Extensions) > Apps Script
  * จากนั้นกด "การทำให้ใช้งานได้ (Deploy)" > "รายการใหม่ (New deployment)" > เลือก "เว็บแอป (Web app)"
  * กำหนด "ใครมีสิทธิ์เข้าถึง (Who has access)" เป็น "ทุกคน (Anyone)"
@@ -101,7 +107,7 @@ function doPost(e) {
     if (action === 'syncAll' && payload.data) {
       var d = payload.data;
 
-      // 1. บันทึกข้อมูลการจองเวร
+      // 1. บันทึกข้อมูลการจองเวร (บันทึกข้อมูลแบบรวมทุกท่านอย่างสมบูรณ์)
       if (d.bookings) {
         var bSheet = getOrCreateSheet(ss, 'Bookings', ['officerId', 'date', 'hours', 'updatedAt']);
         bSheet.clearContents();
@@ -277,7 +283,7 @@ export async function loadDataFromGoogleSheets(scriptUrl: string): Promise<{ suc
 }
 
 /**
- * Sync / Save all data to Google Sheets
+ * Raw Sync / Save all data to Google Sheets
  */
 export async function syncDataToGoogleSheets(scriptUrl: string, syncData: GoogleSheetsSyncData): Promise<{ success: boolean; message: string }> {
   try {
@@ -302,5 +308,98 @@ export async function syncDataToGoogleSheets(scriptUrl: string, syncData: Google
     }
   } catch (err: any) {
     return { success: false, message: err.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Google Sheets' };
+  }
+}
+
+export interface SafeSyncOptions {
+  scriptUrl: string;
+  localData: GoogleSheetsSyncData;
+  activeOfficerId?: string;
+  targetMonthPrefix?: string; // e.g. "2026-10"
+}
+
+export interface SafeSyncResult {
+  success: boolean;
+  message: string;
+  mergedData?: GoogleSheetsSyncData;
+  otherOfficersPreservedCount?: number;
+}
+
+/**
+ * ระบบซิงค์ข้อมูลอย่างปลอดภัยแบบ Smart Pre-Merge:
+ * 1. ดึงข้อมูลล่าสุดจาก Google Sheets มาก่อนเสมอ
+ * 2. ป้องกันข้อมูลของเจ้าหน้าที่ท่านอื่นสูญหาย โดยรวมเวรของทุกคนเข้าด้วยกัน
+ * 3. ส่งข้อมูลที่ผสานแล้ว (Merged Data) กลับขึ้น Google Sheets
+ */
+export async function safeSyncWithRemoteMerge(options: SafeSyncOptions): Promise<SafeSyncResult> {
+  const { scriptUrl, localData, activeOfficerId, targetMonthPrefix } = options;
+
+  if (!scriptUrl.trim()) {
+    return {
+      success: false,
+      message: 'ยังไม่ได้ระบุ Google Apps Script Web App URL',
+    };
+  }
+
+  // ขั้นตอนที่ 1: ดึงข้อมูลล่าสุดจาก Google Sheets
+  let remoteBookings: ShiftBooking[] = [];
+  let remoteOfficers: Officer[] = [];
+  let remoteHolidays: SpecialHoliday[] = [];
+  let remoteDept: DepartmentConfig | undefined;
+
+  const loadRes = await loadDataFromGoogleSheets(scriptUrl);
+  if (loadRes.success && loadRes.data) {
+    if (loadRes.data.bookings && Array.isArray(loadRes.data.bookings)) {
+      remoteBookings = loadRes.data.bookings;
+    }
+    if (loadRes.data.officers && Array.isArray(loadRes.data.officers)) {
+      remoteOfficers = loadRes.data.officers;
+    }
+    if (loadRes.data.specialHolidays && Array.isArray(loadRes.data.specialHolidays)) {
+      remoteHolidays = loadRes.data.specialHolidays;
+    }
+    if (loadRes.data.department) {
+      remoteDept = loadRes.data.department as DepartmentConfig;
+    }
+  }
+
+  // ขั้นตอนที่ 2: ผสานข้อมูล (Smart Merge) เพื่อปกป้องเวรของทุกคน
+  const { mergedBookings, otherOfficersPreservedCount } = smartMergeBookings({
+    localBookings: localData.bookings,
+    remoteBookings,
+    activeOfficerId,
+    targetMonthPrefix,
+  });
+
+  const mergedOfficers = mergeOfficers(localData.officers, remoteOfficers);
+  const mergedHolidays = mergeSpecialHolidays(localData.specialHolidays, remoteHolidays);
+  const mergedDept = mergeDepartmentConfig(localData.department, remoteDept);
+
+  const finalMergedData: GoogleSheetsSyncData = {
+    officers: mergedOfficers,
+    bookings: mergedBookings,
+    specialHolidays: mergedHolidays,
+    department: mergedDept,
+  };
+
+  // ขั้นตอนที่ 3: ส่งข้อมูลที่รวมกันเรียบร้อยแล้วขึ้น Google Sheets
+  const syncRes = await syncDataToGoogleSheets(scriptUrl, finalMergedData);
+  if (syncRes.success) {
+    let msg = 'ซิงค์ข้อมูลขึ้น Google Sheets สำเร็จเรียบร้อย';
+    if (otherOfficersPreservedCount > 0) {
+      msg += ` (รักษาข้อมูลเวรของเจ้าหน้าที่ท่านอื่น ${otherOfficersPreservedCount} รายการ ไม่สูญหาย)`;
+    }
+    return {
+      success: true,
+      message: msg,
+      mergedData: finalMergedData,
+      otherOfficersPreservedCount,
+    };
+  } else {
+    return {
+      success: false,
+      message: syncRes.message,
+      mergedData: finalMergedData,
+    };
   }
 }
