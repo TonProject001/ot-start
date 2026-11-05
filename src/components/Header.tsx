@@ -27,6 +27,8 @@ interface Props {
   isGoogleSheetsConnected: boolean;
   onResetToDemoData: () => void;
   onPrint: () => void;
+  onRefreshGoogleSheets?: () => void;
+  isSyncing?: boolean;
 }
 
 export const Header: React.FC<Props> = ({
@@ -43,6 +45,8 @@ export const Header: React.FC<Props> = ({
   isGoogleSheetsConnected,
   onResetToDemoData,
   onPrint,
+  onRefreshGoogleSheets,
+  isSyncing = false,
 }) => {
   const activeOfficer = officers.find((o) => o.id === activeOfficerId);
   const buddhistYear = toBuddhistYear(year);
@@ -53,7 +57,6 @@ export const Header: React.FC<Props> = ({
     { number: 3, label: '3. วันหยุดพิเศษ' },
     { number: 4, label: '4. ปฏิทินจองเวร' },
     { number: 5, label: '5. ตารางขออนุมัติฯ (4 ท่าน)' },
-    { number: 6, label: '6. ตารางเบิกจ่ายฯ (5 ท่าน)' },
   ];
 
   return (
@@ -97,21 +100,36 @@ export const Header: React.FC<Props> = ({
             </div>
 
             {/* Google Sheets Cloud DB button */}
-            <button
-              onClick={onOpenGoogleSheets}
-              title="เชื่อมต่อฐานข้อมูล Google Sheets ผ่าน Apps Script"
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
-                isGoogleSheetsConnected
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-              }`}
-            >
-              <Database className={`w-3.5 h-3.5 ${isGoogleSheetsConnected ? 'text-emerald-600' : 'text-slate-500'}`} />
-              <span>Google Sheets</span>
-              {isGoogleSheetsConnected && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onOpenGoogleSheets}
+                title="ตั้งค่าฐานข้อมูล Google Sheets ผ่าน Apps Script (Smart Merge ป้องกันข้อมูลทับซ้อน)"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                  isGoogleSheetsConnected
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                <Database className={`w-3.5 h-3.5 ${isGoogleSheetsConnected ? 'text-emerald-600' : 'text-slate-500'}`} />
+                <span>Google Sheets</span>
+                {isGoogleSheetsConnected && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="เชื่อมต่อและระบบป้องกันข้อมูลหายทำงานอยู่"></span>
+                )}
+              </button>
+
+              {isGoogleSheetsConnected && onRefreshGoogleSheets && (
+                <button
+                  type="button"
+                  disabled={isSyncing}
+                  onClick={onRefreshGoogleSheets}
+                  title="กดเพื่อดึงข้อมูลล่าสุดจาก Google Sheets (อัปเดตเวรของเพื่อนร่วมงานทันที)"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200 border border-emerald-300 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <CloudCheck className={`w-3.5 h-3.5 text-emerald-700 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span className="hidden xl:inline">{isSyncing ? 'กำลังดึง...' : 'ดึงเวรล่าสุด'}</span>
+                </button>
               )}
-            </button>
+            </div>
 
             <button
               onClick={onResetToDemoData}
