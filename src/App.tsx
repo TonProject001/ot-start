@@ -23,10 +23,17 @@ import { GoogleSheetsModal } from './components/GoogleSheetsModal';
 import {
   syncDataToGoogleSheets,
   loadDataFromGoogleSheets,
+  safeSyncWithRemoteMerge,
   DEFAULT_GOOGLE_SHEETS_URL,
   GoogleSheetsSyncData
 } from './services/googleSheetsService';
-import { CheckCircle, Eye } from 'lucide-react';
+import {
+  smartMergeBookings,
+  mergeOfficers,
+  mergeSpecialHolidays,
+  mergeDepartmentConfig
+} from './utils/syncLogic';
+import { CheckCircle, Eye, CloudCheck } from 'lucide-react';
 
 const STORAGE_KEY_OFFICERS = 'ot_roster_officers_v1';
 const STORAGE_KEY_BOOKINGS = 'ot_roster_bookings_v1';
@@ -164,30 +171,90 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_GSHEETS_URL, googleSheetsUrl);
   }, [googleSheetsUrl]);
 
-  // Google Sheets Sync Functions
+  // Auto-fetch latest data from Google Sheets on application load to sync colleagues' latest shifts
+  useEffect(() => {
+    if (!googleSheetsUrl.trim()) return;
+
+    let isCancelled = false;
+    const fetchLatestOnMount = async () => {
+      setIsSyncingSheets(true);
+      try {
+        const res = await loadDataFromGoogleSheets(googleSheetsUrl);
+        if (isCancelled) return;
+        if (res.success && res.data) {
+          if (res.data.bookings && res.data.bookings.length > 0) {
+            setBookings((prevLocal) => {
+              const { mergedBookings } = smartMergeBookings({
+                localBookings: prevLocal,
+                remoteBookings: res.data!.bookings!,
+              });
+              return mergedBookings;
+            });
+          }
+          if (res.data.officers && res.data.officers.length > 0) {
+            setOfficers((prevLocal) => mergeOfficers(prevLocal, res.data!.officers!));
+          }
+          if (res.data.specialHolidays && res.data.specialHolidays.length > 0) {
+            setSpecialHolidays((prevLocal) => mergeSpecialHolidays(prevLocal, res.data!.specialHolidays!));
+          }
+          if (res.data.department) {
+            setDepartment((prevLocal) => mergeDepartmentConfig(prevLocal, res.data!.department));
+          }
+          const nowStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+          setLastSyncedAt(nowStr);
+          localStorage.setItem(STORAGE_KEY_LAST_SYNCED, nowStr);
+          notify('ดึงข้อมูลล่าสุดจาก Google Sheets เรียบร้อย (เวรของทุกคนตรงกัน)');
+        }
+      } catch (err) {
+        console.warn('Initial cloud sync check:', err);
+      } finally {
+        if (!isCancelled) setIsSyncingSheets(false);
+      }
+    };
+
+    fetchLatestOnMount();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [googleSheetsUrl]);
+
+  // Google Sheets Sync Functions with Smart Merge Protection
   const handleSyncToGoogleSheets = useCallback(async () => {
     if (!googleSheetsUrl.trim()) {
       setShowGoogleSheetsModal(true);
       return;
     }
     setIsSyncingSheets(true);
-    const syncPayload: GoogleSheetsSyncData = {
-      officers,
-      bookings,
-      specialHolidays,
-      department,
-    };
-    const res = await syncDataToGoogleSheets(googleSheetsUrl, syncPayload);
+    const res = await safeSyncWithRemoteMerge({
+      scriptUrl: googleSheetsUrl,
+      localData: {
+        officers,
+        bookings,
+        specialHolidays,
+        department,
+      },
+      activeOfficerId,
+      targetMonthPrefix: `${year}-${String(month).padStart(2, '0')}`,
+    });
     setIsSyncingSheets(false);
+
+    if (res.mergedData) {
+      setBookings(res.mergedData.bookings);
+      setOfficers(res.mergedData.officers);
+      setSpecialHolidays(res.mergedData.specialHolidays);
+      setDepartment(res.mergedData.department);
+    }
+
     if (res.success) {
       const nowStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
       setLastSyncedAt(nowStr);
       localStorage.setItem(STORAGE_KEY_LAST_SYNCED, nowStr);
-      notify('ซิงค์ข้อมูลขึ้น Google Sheets สำเร็จเรียบร้อย');
+      notify(res.message);
     } else {
       notify(`เกิดข้อผิดพลาดในการซิงค์: ${res.message}`);
     }
-  }, [googleSheetsUrl, officers, bookings, specialHolidays, department]);
+  }, [googleSheetsUrl, officers, bookings, specialHolidays, department, activeOfficerId, year, month]);
 
   const handleLoadFromGoogleSheets = useCallback(async () => {
     if (!googleSheetsUrl.trim()) return;
@@ -195,26 +262,79 @@ export default function App() {
     const res = await loadDataFromGoogleSheets(googleSheetsUrl);
     setIsSyncingSheets(false);
     if (res.success && res.data) {
+      if (res.data.bookings && res.data.bookings.length > 0) {
+        setBookings((prevLocal) => {
+          const { mergedBookings } = smartMergeBookings({
+            localBookings: prevLocal,
+            remoteBookings: res.data!.bookings!,
+          });
+          return mergedBookings;
+        });
+      }
       if (res.data.officers && res.data.officers.length > 0) {
-        setOfficers(res.data.officers);
+        setOfficers((prevLocal) => mergeOfficers(prevLocal, res.data!.officers!));
       }
-      if (res.data.bookings) {
-        setBookings(res.data.bookings);
-      }
-      if (res.data.specialHolidays) {
-        setSpecialHolidays(res.data.specialHolidays);
+      if (res.data.specialHolidays && res.data.specialHolidays.length > 0) {
+        setSpecialHolidays((prevLocal) => mergeSpecialHolidays(prevLocal, res.data!.specialHolidays!));
       }
       if (res.data.department) {
-        setDepartment((prev) => ({ ...prev, ...res.data!.department }));
+        setDepartment((prevLocal) => mergeDepartmentConfig(prevLocal, res.data!.department));
       }
       const nowStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
       setLastSyncedAt(nowStr);
       localStorage.setItem(STORAGE_KEY_LAST_SYNCED, nowStr);
-      notify('โหลดข้อมูลจาก Google Sheets สำเร็จ');
+      notify('ดึงข้อมูลล่าสุดจาก Google Sheets และรวมข้อมูลเรียบร้อยแล้ว');
     } else {
       notify(res.message);
     }
   }, [googleSheetsUrl]);
+
+  // Booking Handlers: Save and immediately sync safely to cloud with Smart Merge
+  const handleSaveBookingsAndSync = useCallback(
+    async (newBookings: ShiftBooking[]) => {
+      const newDates = new Set(newBookings.map((nb) => `${nb.officerId}_${nb.date}`));
+      const updatedLocal = [...bookings.filter((b) => !newDates.has(`${b.officerId}_${b.date}`)), ...newBookings];
+      setBookings(updatedLocal);
+
+      if (!googleSheetsUrl.trim()) {
+        notify(`บันทึกการจองเวร ${newBookings.length} วัน เรียบร้อยแล้ว (ในเครื่อง)`);
+        return;
+      }
+
+      setIsSyncingSheets(true);
+      const res = await safeSyncWithRemoteMerge({
+        scriptUrl: googleSheetsUrl,
+        localData: {
+          officers,
+          bookings: updatedLocal,
+          specialHolidays,
+          department,
+        },
+        activeOfficerId,
+        targetMonthPrefix: `${year}-${String(month).padStart(2, '0')}`,
+      });
+      setIsSyncingSheets(false);
+
+      if (res.mergedData) {
+        setBookings(res.mergedData.bookings);
+        setOfficers(res.mergedData.officers);
+        setSpecialHolidays(res.mergedData.specialHolidays);
+        setDepartment(res.mergedData.department);
+      }
+
+      if (res.success) {
+        const nowStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        setLastSyncedAt(nowStr);
+        localStorage.setItem(STORAGE_KEY_LAST_SYNCED, nowStr);
+        notify(
+          `บันทึกและส่ง Google Sheets สำเร็จ! รวมเวรของท่านอื่น ${res.otherOfficersPreservedCount || 0} รายการ ปลอดภัย`
+        );
+      } else {
+        notify(`บันทึกในเครื่องแล้ว (ส่ง Google Sheets ไม่สำเร็จ: ${res.message})`);
+      }
+    },
+    [googleSheetsUrl, bookings, officers, specialHolidays, department, activeOfficerId, year, month]
+  );
 
   // Officer Handlers
   const handleAddOfficer = (name: string, position: string) => {
@@ -350,6 +470,8 @@ export default function App() {
         isGoogleSheetsConnected={!!googleSheetsUrl}
         onResetToDemoData={handleResetToDemoData}
         onPrint={() => window.print()}
+        onRefreshGoogleSheets={handleLoadFromGoogleSheets}
+        isSyncing={isSyncingSheets}
       />
 
       {/* Content Container */}
@@ -398,10 +520,15 @@ export default function App() {
               year={year}
               month={month}
               officer={currentOfficer}
+              officers={officers}
               bookings={bookings}
               specialHolidays={specialHolidays}
               onSaveBookings={handleSaveBookings}
+              onSaveAndSync={handleSaveBookingsAndSync}
               onRemoveBookingsForDates={handleRemoveBookingsForDates}
+              onRefreshGoogleSheets={handleLoadFromGoogleSheets}
+              isSyncingSheets={isSyncingSheets}
+              isGoogleSheetsConnected={!!googleSheetsUrl}
               onPrev={() => setCurrentStep(3)}
               onNext={() => setCurrentStep(5)}
             />
@@ -439,7 +566,7 @@ export default function App() {
         )}
 
         {/* Step 5: Official Approval Roster Table (หลักฐานการขออนุมัติฯ - 4 ท่าน) */}
-        {currentStep === 5 && (
+        {currentStep >= 5 && (
           <OfficialRosterTable
             year={year}
             month={month}
@@ -448,23 +575,6 @@ export default function App() {
             bookings={bookings}
             specialHolidays={specialHolidays}
             department={department}
-            initialDocType="approval"
-            onOpenSettings={() => setShowSettings(true)}
-            onSelectOfficer={(id) => setActiveOfficerId(id)}
-          />
-        )}
-
-        {/* Step 6: Official Disbursement Roster Table (หลักฐานการเบิกจ่ายฯ - 5 ท่าน) */}
-        {currentStep === 6 && (
-          <OfficialRosterTable
-            year={year}
-            month={month}
-            officers={officers}
-            activeOfficerId={activeOfficerId}
-            bookings={bookings}
-            specialHolidays={specialHolidays}
-            department={department}
-            initialDocType="disbursement"
             onOpenSettings={() => setShowSettings(true)}
             onSelectOfficer={(id) => setActiveOfficerId(id)}
           />
