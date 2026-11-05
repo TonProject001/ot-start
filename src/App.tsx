@@ -419,25 +419,6 @@ export default function App() {
     }
   };
 
-  // Reset to original Reference PDF Document Data (15,800 บาท)
-  const handleResetToDemoData = () => {
-    if (
-      window.confirm(
-        'ต้องการรีเซ็ตข้อมูลกลับเป็นตัวอย่างตามแบบฟอร์มทางการ (6 ท่าน, ตุลาคม 2569, รวม 15,800 บาท) ใช่หรือไม่?'
-      )
-    ) {
-      setOfficers(INITIAL_OFFICERS);
-      setBookings(INITIAL_BOOKINGS);
-      setSpecialHolidays(INITIAL_SPECIAL_HOLIDAYS);
-      setDepartment(INITIAL_DEPARTMENT);
-      setYear(2026);
-      setMonth(10);
-      setActiveOfficerId(INITIAL_OFFICERS[0].id);
-      setCurrentStep(5);
-      notify('โหลดข้อมูลตัวอย่างตามแบบฟอร์มทางการเรียบร้อยแล้ว');
-    }
-  };
-
   const currentOfficer =
     officers.find((o) => o.id === activeOfficerId) || officers[0] || {
       id: 'default',
@@ -468,7 +449,6 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenGoogleSheets={() => setShowGoogleSheetsModal(true)}
         isGoogleSheetsConnected={!!googleSheetsUrl}
-        onResetToDemoData={handleResetToDemoData}
         onPrint={() => window.print()}
         onRefreshGoogleSheets={handleLoadFromGoogleSheets}
         isSyncing={isSyncingSheets}
