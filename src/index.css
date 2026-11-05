@@ -47,7 +47,7 @@
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 2.5mm 0 0 0 !important; /* Headroom prevents top tone marks clipping */
     border: none !important;
     box-shadow: none !important;
     overflow: visible !important;
@@ -55,19 +55,25 @@
   }
 
   .print-header {
+    margin-top: 1mm !important;
     margin-bottom: 2mm !important;
+    padding-top: 1mm !important;
+    overflow: visible !important;
   }
 
   .print-header h1 {
     font-size: 13pt !important;
     margin: 0 0 1mm 0 !important;
-    line-height: 1.2 !important;
+    line-height: 1.55 !important; /* Ample line height for Thai stacked tone marks e.g. ขึ้, ฏิ, บัติ */
+    padding-top: 1.5mm !important; /* Prevents top Thai tone marks from being clipped at page edge */
+    overflow: visible !important;
   }
 
   .print-header p {
     font-size: 9.5pt !important;
     margin: 0 !important;
-    line-height: 1.2 !important;
+    line-height: 1.35 !important;
+    overflow: visible !important;
   }
 
   /* Master official table layout: tight, exact borders and non-overflowing cells */
@@ -114,17 +120,46 @@
     margin: 0.5mm 0 !important;
   }
 
-  /* 5 Signatures block placed neatly without overflowing bottom margin */
+  /* 4 Signatures block: ample height for signing without crowding upper instruction line */
   .print-signatures {
-    margin-top: 3.5mm !important;
+    margin-top: 4mm !important;
     padding-top: 1mm !important;
     font-size: 8pt !important;
-    line-height: 1.2 !important;
+    line-height: 1.25 !important;
     page-break-inside: avoid !important;
   }
 
   .print-signatures p {
     margin: 0.5mm 0 !important;
+  }
+
+  .print-signatures .signature-header {
+    min-height: 5.5mm !important;
+    margin-bottom: 0 !important;
+    line-height: 1.25 !important;
+  }
+
+  .print-signatures .signature-space {
+    height: 9mm !important; /* Increased signing height so pen never touches line above */
+    min-height: 9mm !important;
+    display: block !important;
+  }
+
+  .print-signatures .signature-line {
+    margin-top: 0 !important;
+    margin-bottom: 1.2mm !important;
+    line-height: 1.2 !important;
+  }
+
+  .print-signatures .signer-name {
+    margin-top: 1.5mm !important;
+    margin-bottom: 0.8mm !important;
+    line-height: 1.2 !important;
+  }
+
+  .print-signatures .signer-pos {
+    margin-top: 0.5mm !important;
+    line-height: 1.25 !important;
   }
 
   /* Force background shading for holiday/weekend columns */
