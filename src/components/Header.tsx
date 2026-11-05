@@ -4,7 +4,6 @@ import {
   FileSpreadsheet,
   Printer,
   FileText,
-  RotateCcw,
   Calendar,
   User,
   Database,
@@ -25,7 +24,6 @@ interface Props {
   onOpenSettings: () => void;
   onOpenGoogleSheets: () => void;
   isGoogleSheetsConnected: boolean;
-  onResetToDemoData: () => void;
   onPrint: () => void;
   onRefreshGoogleSheets?: () => void;
   isSyncing?: boolean;
@@ -43,7 +41,6 @@ export const Header: React.FC<Props> = ({
   onOpenSettings,
   onOpenGoogleSheets,
   isGoogleSheetsConnected,
-  onResetToDemoData,
   onPrint,
   onRefreshGoogleSheets,
   isSyncing = false,
@@ -130,15 +127,6 @@ export const Header: React.FC<Props> = ({
                 </button>
               )}
             </div>
-
-            <button
-              onClick={onResetToDemoData}
-              title="ดึงข้อมูลตัวอย่างตามภาพจริง 6 คน รวม 16,400 บาท"
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-600 hover:text-blue-700 bg-slate-100 hover:bg-blue-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>โหลดข้อมูลตามภาพ</span>
-            </button>
 
             <button
               onClick={onOpenSavedRecords}
