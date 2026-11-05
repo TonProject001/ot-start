@@ -4,7 +4,6 @@ import {
   Printer,
   Users,
   User,
-  Download,
   Settings,
   Info,
   CheckCircle2,
@@ -81,45 +80,6 @@ export const OfficialRosterTable: React.FC<Props> = ({
     window.print();
   };
 
-  // Export to CSV
-  const handleExportCSV = () => {
-    let csv = `\uFEFF${currentTitle}\n`;
-    csv += `ส่วนราชการ ${department.agencyName} ประจำเดือน ${THAI_MONTHS[month - 1]} ${buddhistYear} ${department.divisionName}\n\n`;
-
-    const dayCols = Array.from({ length: daysInMonth }, (_, i) => `วันที่ ${i + 1}`).join(',');
-    csv += `ชื่อ-สกุล,ตำแหน่ง,อัตรา/ชม.,${dayCols},จำนวนเวร(ชม.),จำนวนเงินต่อเวร,รวมจำนวนเงิน,ลายมือชื่อ\n`;
-
-    displayedSummaries.forEach((s) => {
-      // Row 50
-      const days50 = Array.from({ length: daysInMonth }, (_, i) => {
-        const d = i + 1;
-        const dStr = `${year}-${monthStr}-${String(d).padStart(2, '0')}`;
-        const isHol = isHolidayOrWeekend(dStr, specialHolidays);
-        return !isHol && s.dailyHours[d] ? s.dailyHours[d] : '';
-      }).join(',');
-      csv += `"${s.officer.name}","${s.officer.position}",50,${days50},${s.weekdayHours},${s.weekdayAmount},"${s.totalAmount}",""\n`;
-
-      // Row 60
-      const days60 = Array.from({ length: daysInMonth }, (_, i) => {
-        const d = i + 1;
-        const dStr = `${year}-${monthStr}-${String(d).padStart(2, '0')}`;
-        const isHol = isHolidayOrWeekend(dStr, specialHolidays);
-        return isHol && s.dailyHours[d] ? s.dailyHours[d] : '';
-      }).join(',');
-      csv += `,,,60,${days60},${s.holidayAmount},,\n`;
-    });
-
-    csv += `\nรวมรายจ่ายทั้งสิ้น(ตัวอักษร),${grandTotalText},,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,รวม,${grandTotalAmount}\n`;
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `หลักฐานขออนุมัติ_${THAI_MONTHS[month - 1]}_${buddhistYear}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <div className="space-y-6">
@@ -178,14 +138,6 @@ export const OfficialRosterTable: React.FC<Props> = ({
             >
               <Settings className="w-3.5 h-3.5 text-slate-500" />
               <span>แก้ไขหัวเอกสาร/ผู้มีอำนาจลงนาม</span>
-            </button>
-
-            <button
-              onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-300"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>ส่งออก Excel/CSV</span>
             </button>
 
             <button
